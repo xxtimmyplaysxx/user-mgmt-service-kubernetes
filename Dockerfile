@@ -3,8 +3,10 @@ FROM gradle:9.6.0-jdk25-alpine AS build
 WORKDIR /app
 
 COPY build.gradle settings.gradle ./
-COPY src ./src
 
+RUN gradle dependencies --no-daemon
+
+COPY src ./src
 RUN gradle build -x test --no-daemon
 
 
