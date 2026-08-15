@@ -55,13 +55,35 @@ services:
       - user-mgmt-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`user-mgmt-service-nt.duckdns.org`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`user-mgmt-service-nt.duckdns.org`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.middlewares.backend-strip.stripprefix.prefixes=/api"
       - "traefik.http.routers.backend.middlewares=backend-strip"
       - "traefik.http.services.backend.loadbalancer.server.port=8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: /api
+    image: user-mgmt-frontend:latest
+    container_name: user-mgmt-frontend
+    environment:
+      BACKEND_API_URL: http://backend:8080
+      NEXT_PUBLIC_API_URL: /api
+    depends_on:
+      - backend
+    networks:
+      - user-mgmt-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`user-mgmt-service-nt.duckdns.org`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
 
 volumes:
   postgres-data:
