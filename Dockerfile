@@ -28,12 +28,12 @@ WORKDIR /app
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN addgroup -S -g 1001 spring && adduser -S -u 1001 spring -G spring
 
 COPY --from=jre-build /custom-jre ${JAVA_HOME}
 COPY --from=build /app/build/libs/user-mgmt-service-0.0.1-SNAPSHOT.jar app.jar
 
-USER spring
+USER 1001
 
 EXPOSE 8080
 

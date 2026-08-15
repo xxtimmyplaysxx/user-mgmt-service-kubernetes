@@ -32,13 +32,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
+RUN addgroup -S -g 1001 nextjs && adduser -S -u 1001 nextjs -G nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
 
-USER nextjs
+USER 1001
 
 EXPOSE 3000
 
