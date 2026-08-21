@@ -1,0 +1,86 @@
+name: Build, publish and promote
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/xxtimmyplaysxx/user-mgmt-backend
+  FRONTEND_IMAGE: ghcr.io/xxtimmyplaysxx/user-mgmt-frontend
+
+jobs:
+  build-publish-promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout application repository
+        uses: actions/checkout@v4
+
+      - name: Set immutable image tag
+        id: image
+        shell: bash
+        run: echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish backend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.BACKEND_IMAGE }}:${{ steps.image.outputs.tag }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build and publish frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ env.FRONTEND_IMAGE }}:${{ steps.image.outputs.tag }}
+          build-args: NEXT_PUBLIC_API_URL=/api
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Checkout Ops repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.OPS_REPOSITORY }}
+          token: ${{ secrets.OPS_REPO_TOKEN }}
+          path: ops-repository
+
+      - name: Promote immutable tag to staging
+        uses: mikefarah/yq@v4.47.2
+        with:
+          cmd: >-
+            yq -i
+            '.images.backend.tag = "${{ steps.image.outputs.tag }}" |
+             .images.frontend.tag = "${{ steps.image.outputs.tag }}"'
+            ops-repository/charts/user-mgmt/values-staging.yaml
+
+      - name: Commit promotion to Ops repository
+        working-directory: ops-repository
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- charts/user-mgmt/values-staging.yaml
+          if git diff --cached --quiet; then
+            echo "No promotion change required"
+            exit 0
+          fi
+          git commit -m "Promote application ${GITHUB_SHA} to staging"
+          git push origin HEAD:main
