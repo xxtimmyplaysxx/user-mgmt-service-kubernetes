@@ -65,11 +65,7 @@ jobs:
       - name: Promote immutable tag to staging
         uses: mikefarah/yq@v4.47.2
         with:
-          cmd: >-
-            yq -i
-            '.images.backend.tag = "${{ steps.image.outputs.tag }}" |
-             .images.frontend.tag = "${{ steps.image.outputs.tag }}"'
-            ops-repository/charts/user-mgmt/values-staging.yaml
+          cmd: yq -i '.images.backend.tag = "${{ steps.image.outputs.tag }}" | .images.frontend.tag = "${{ steps.image.outputs.tag }}"' ops-repository/charts/user-mgmt/values-staging.yaml
 
       - name: Commit promotion to Ops repository
         working-directory: ops-repository
