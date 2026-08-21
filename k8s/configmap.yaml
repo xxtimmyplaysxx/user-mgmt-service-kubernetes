@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-mgmt-config
+  namespace: user-mgmt
+data:
+  POSTGRES_DB: usermgmt
+  POSTGRES_USER: usermgmt
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/usermgmt
+  SPRING_DATASOURCE_USERNAME: usermgmt
+  SPRING_JPA_HIBERNATE_DDL_AUTO: update
+  JWT_ISSUER: user-mgmt
+  JWT_EXPIRATION_MILLIS: "86400000"
+  BACKEND_API_URL: http://backend:8080
+  NEXT_PUBLIC_API_URL: /api

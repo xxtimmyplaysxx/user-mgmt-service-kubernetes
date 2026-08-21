@@ -44,6 +44,7 @@ public class WebSecurityConfig {
         "/users/login".equals(request.getServletPath()) && HttpMethod.POST.matches(request.getMethod());
     return http
         .authorizeHttpRequests(requests -> requests
+            .requestMatchers("/actuator/health/**").permitAll()
             .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
             .requestMatchers(HttpMethod.POST, "/users/register").permitAll()
             .anyRequest().authenticated())
