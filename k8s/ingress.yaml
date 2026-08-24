@@ -9,7 +9,8 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: user-mgmt-k8s-nt.duckdns.org
+      http:
         paths:
           - path: /api/users(/|$)(.*)
             pathType: ImplementationSpecific
@@ -27,7 +28,8 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: user-mgmt-k8s-nt.duckdns.org
+      http:
         paths:
           - path: /
             pathType: Prefix
