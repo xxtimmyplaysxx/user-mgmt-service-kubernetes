@@ -4,7 +4,7 @@ metadata:
   name: frontend
   namespace: user-mgmt
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/xxtimmyplaysxx/user-mgmt-frontend:latest
+          image: ghcr.io/xxtimmyplaysxx/user-mgmt-frontend:56a9e9773a07472e3affe0d8848f5509ce5fa974
           imagePullPolicy: Always
           ports:
             - name: http

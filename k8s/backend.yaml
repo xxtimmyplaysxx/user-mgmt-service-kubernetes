@@ -4,7 +4,7 @@ metadata:
   name: backend
   namespace: user-mgmt
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/xxtimmyplaysxx/user-mgmt-backend:latest
+          image: ghcr.io/xxtimmyplaysxx/user-mgmt-backend:56a9e9773a07472e3affe0d8848f5509ce5fa974
           imagePullPolicy: Always
           ports:
             - name: http
@@ -42,7 +42,7 @@ spec:
             httpGet:
               path: /actuator/health/liveness
               port: http
-            failureThreshold: 30
+            failureThreshold: 60
             periodSeconds: 5
           livenessProbe:
             httpGet:

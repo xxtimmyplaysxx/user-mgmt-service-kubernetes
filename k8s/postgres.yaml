@@ -39,6 +39,9 @@ spec:
                 name: user-mgmt-config
             - secretRef:
                 name: user-mgmt-secret
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           resources:
             requests:
               cpu: 100m
