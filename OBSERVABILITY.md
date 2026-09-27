@@ -1,6 +1,6 @@
 # VSC: Observability and Microservices
 
-This branch prepares the user management application for VSC tasks 1 and 6.
+This repository implements the user management application for VSC tasks 1 and 6.
 Infrastructure, migration instructions and the honest acceptance-status table:
 https://github.com/xxtimmyplaysxx/user-mgmt-ops
 
@@ -75,29 +75,35 @@ is registered under that repository's Deploy keys; the private half is never
 committed. The old `OPS_REPO_TOKEN` is no longer used. Checkout selects `main`
 explicitly and keeps SSH host verification enabled.
 
-On 27 September, main commit `6c932b34bb69f1d3af03ca5529b887874d9b6112` passed
-Java/Python tests and published all three images. The final promotion failed with
-`Bad credentials` from the old Ops token. A repository-scoped SSH deploy key was
-then configured and verified with `git ls-remote` and a push dry-run. The revised
-workflow completed successfully in run
-[36323051668](https://github.com/xxtimmyplaysxx/user-mgmt-service-kubernetes/actions/runs/36323051668),
-including image promotion to Ops main.
+## Verified deployment and submission
 
-After Ops PR 1 was merged, all four staging Deployments became Ready and Argo CD
-reported Synced/Healthy. Managed MySQL reports TLS 1.3 with certificate and hostname
-verification, and both application Prometheus targets are up. Live E2E confirmed
-registration/login, module assignment and an idempotent repeat, but exposed a 403
-instead of the expected 404 for a missing module. The servlet ERROR redispatch was
-being authenticated again after the request's JWT context had been cleared.
+As of **27 September 2026, 17:49 Europe/Zurich**, the documented live acceptance
+checks for VSC tasks 1-6 have passed. The tested application image tag is
+`fd1e6343585fdf92ba437e929d23cabe1f894133`. Staging and Production report
+Synced/Healthy in Argo CD. Staging uses Managed PostgreSQL and Managed MySQL with
+verified TLS; the old staging PostgreSQL deployment and volume have been retired.
 
-The security configuration now permits only the internal ERROR dispatcher, as
-[documented by Spring Security](https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html).
-Ordinary requests to `/error` and the assignment API retain their authentication
-rules. The real HTTP regression tests reproduce the incorrect statuses before
-the fix. The live E2E run must be repeated after publishing the corrected image.
+- Registration/login and all six live assignment/security E2E cases passed.
+- The login load test passed: 3282 successful requests, zero HTTP errors, P95 1.06 s,
+  HPA 1 -> 2 -> 1 and no backend restarts.
+- A controlled backend-to-module network outage returned bounded HTTP 503 responses.
+  The open circuit failed quickly without downstream requests; login still worked.
+  Assignments recovered after the waiting period. Network policy and Argo auto-sync
+  were restored to their original settings, without application restarts.
+- The authenticated lookup was initially slow after migration. Updating the missing
+  PostgreSQL planner statistics with ANALYZE reduced the five-request parallel
+  assignment control from 10-second client timeouts to 0.115-0.251 s.
 
-Status: the owner released the earlier cluster-change freeze. Cluster import,
-managed databases, backup restore test, monitoring and module rollout are live;
-the API error-status fix, final PostgreSQL cutover and remaining live acceptance
-checks are pending.
-The Ops repository's evidence/STATUS.md tracks the remaining checks.
+The initial deployment exposed an incorrect 403 for missing modules. The internal
+servlet ERROR redispatch was being authenticated a second time. The security
+configuration now permits that dispatcher while ordinary requests remain protected;
+HTTP regression tests and the repeated live E2E passed. The initial pipeline's
+invalid Ops credentials were replaced with the scoped SSH deploy key described above.
+
+The submission consists of this Application repository and the
+[Ops repository](https://github.com/xxtimmyplaysxx/user-mgmt-ops).
+Infrastructure configuration, dated acceptance results and limitations are maintained
+in its [status and evidence](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/STATUS.md),
+[resilience report](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/module-resilience.md)
+and [German oral-exam guide](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/PRUEFUNGSVORBEREITUNG.md).
+The teacher performs the final assessment and oral examination.
