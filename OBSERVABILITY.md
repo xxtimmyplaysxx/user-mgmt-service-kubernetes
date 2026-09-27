@@ -1,108 +1,106 @@
-# VSC: Observability and Microservices
+# Modulzuweisung und Observability
 
-This repository implements the user management application for VSC tasks 1 and 6.
-Infrastructure, migration instructions and the honest acceptance-status table:
-https://github.com/xxtimmyplaysxx/user-mgmt-ops
+## Kommunikation
 
-## Request flow
-
-Client -> user-mgmt-backend -> user-mgmt-module -> Managed MySQL.
-The backend continues to own its users in PostgreSQL. It has no MySQL credentials.
-
-Authenticated `PUT /users/{userId}/modules/{moduleId}`:
-
-1. Only the user themself or a caller with `USER_MODIFY` may assign a module.
-2. The backend verifies the user exists (404 for a missing user).
-3. A synchronous GET to `/api/v1/modules/{moduleId}` verifies the module exists.
-4. A synchronous idempotent PUT delegates assignment to the Module Service.
-5. Success returns 204. Missing module returns 404. Downstream failure returns 503.
-
-Through the existing ingress the endpoint is `/api/users/{userId}/modules/{moduleId}`.
-No frontend change is required by the acceptance criteria; the API is demonstrated
-using `scripts/e2e.py`.
-
-## Resilience
-
-Java HttpClient: 1 second connect timeout, 2 second request timeout by default.
-Retries: at most 3 attempts, 200 ms between attempts, only IO failures, 429 and 5xx.
-404 and other non-transient errors are not retried. GET and PUT are idempotent.
-Circuit breaker: 5 logical calls minimum, opens at >=50% failures, waits 15 seconds,
-then allows 2 half-open probes. An open circuit returns 503 without downstream calls.
-Each GET/PUT has a bounded retry budget; one assignment contains two calls.
-
-## Metrics
-
-- Spring: `/actuator/prometheus`, `http_server_requests_seconds_count` and histogram.
-- Python: `/metrics`, `module_http_requests_total` and `module_http_request_duration_seconds`.
-- Route templates avoid a different metrics label for each UUID.
-- Health and metrics endpoints are excluded from the Python business metrics.
-- Kubernetes NetworkPolicies and the existing ingress keep metrics off public routes.
-
-## Module Service
-
-The course implementation is included under `module-service/`, with provenance in
-`UPSTREAM.md`. It retains the teacher's API, schema and seeded module IDs.
-An init container runs `python -m app.initialize` to create/seed MySQL idempotently.
-Both the init container and application verify the Managed MySQL CA and hostname.
-`DATABASE_URL` and `ca.crt` come from a Kubernetes Secret.
-
-## Local checks
-
-```powershell
-.\gradlew.bat test --no-daemon
-cd module-service
-uv sync --frozen --extra dev
-uv run pytest
+```text
+Client → User-Service → Module-Service → Managed MySQL
+              ↓
+       Managed PostgreSQL
 ```
 
-Java tests cover retry, circuit opening, timeout, missing module, missing user and
-controller delegation. A real embedded HTTP server also verifies that servlet
-error dispatch preserves 400/404/502/503, while unauthenticated and other-user
-assignments remain forbidden. Its H2 database is test-only. Python tests cover API validation, duplicate module codes,
-idempotent assignments and metrics. These local tests do not replace live MySQL,
-Kubernetes admission or end-to-end checks.
+Der User-Service greift für Benutzerdaten auf PostgreSQL zu.
+Module und Zuweisungen verwaltet ausschliesslich der Module-Service in MySQL.
+Der User-Service besitzt keine MySQL-Zugangsdaten.
 
-## GitOps
+## Modul zuweisen
 
-The existing workflow tests Java and Python, builds three images, publishes them to
-GHCR using the commit SHA and updates staging image tags in the Ops repository.
-Argo CD applies the reviewed Helm configuration. Pull requests build/test only;
-they do not publish or promote. Main pushes can change the live staging application.
+`PUT /users/{userId}/modules/{moduleId}` benötigt ein gültiges JWT.
+Über den Ingress lautet der Pfad `/api/users/{userId}/modules/{moduleId}`.
 
-Ops promotion uses the encrypted Actions secret `OPS_DEPLOY_KEY`, an SSH deploy
-key with write access only to `xxtimmyplaysxx/user-mgmt-ops`. The key's public half
-is registered under that repository's Deploy keys; the private half is never
-committed. The old `OPS_REPO_TOKEN` is no longer used. Checkout selects `main`
-explicitly and keeps SSH host verification enabled.
+1. Die Berechtigungsprüfung erlaubt die eigene User-ID oder die Berechtigung `USER_MODIFY`.
+2. Der User-Service prüft, ob der Benutzer existiert.
+3. Er fragt das Modul synchron über `GET /api/v1/modules/{moduleId}` ab.
+4. Existiert das Modul, erfolgt die Zuweisung über `PUT /api/v1/users/{userId}/modules/{moduleId}`.
 
-## Verified deployment and submission
+Wiederholte Zuweisungen erzeugen keinen zweiten Eintrag.
 
-As of **27 September 2026, 17:49 Europe/Zurich**, the documented live acceptance
-checks for VSC tasks 1-6 have passed. The tested application image tag is
-`fd1e6343585fdf92ba437e929d23cabe1f894133`. Staging and Production report
-Synced/Healthy in Argo CD. Staging uses Managed PostgreSQL and Managed MySQL with
-verified TLS; the old staging PostgreSQL deployment and volume have been retired.
+| Fall | HTTP-Status |
+|---|---|
+| Zuweisung oder Wiederholung erfolgreich | 204 |
+| Benutzer oder Modul nicht vorhanden | 404 |
+| Ungültige UUID | 400 |
+| Ohne Anmeldung oder ohne Berechtigung | 403 |
+| Module-Service vorübergehend nicht erreichbar | 503 |
+| Unerwartete Antwort des Module-Service, z. B. sonstiger 4xx-Status | 502 |
 
-- Registration/login and all six live assignment/security E2E cases passed.
-- The login load test passed: 3282 successful requests, zero HTTP errors, P95 1.06 s,
-  HPA 1 -> 2 -> 1 and no backend restarts.
-- A controlled backend-to-module network outage returned bounded HTTP 503 responses.
-  The open circuit failed quickly without downstream requests; login still worked.
-  Assignments recovered after the waiting period. Network policy and Argo auto-sync
-  were restored to their original settings, without application restarts.
-- The authenticated lookup was initially slow after migration. Updating the missing
-  PostgreSQL planner statistics with ANALYZE reduced the five-request parallel
-  assignment control from 10-second client timeouts to 0.115-0.251 s.
+Implementierung: [Controller](src/main/java/com/example/jwt/domain/module/ModuleAssignmentController.java)
+und [REST-Client](src/main/java/com/example/jwt/domain/module/ModuleClient.java).
 
-The initial deployment exposed an incorrect 403 for missing modules. The internal
-servlet ERROR redispatch was being authenticated a second time. The security
-configuration now permits that dispatcher while ordinary requests remain protected;
-HTTP regression tests and the repeated live E2E passed. The initial pipeline's
-invalid Ops credentials were replaced with the scoped SSH deploy key described above.
+## Verhalten bei Ausfällen
 
-The submission consists of this Application repository and the
-[Ops repository](https://github.com/xxtimmyplaysxx/user-mgmt-ops).
-Infrastructure configuration, dated acceptance results and limitations are maintained
-in its [status and evidence](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/STATUS.md)
-and [resilience report](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/module-resilience.md).
-The teacher performs the final assessment and oral examination.
+Der HTTP-Client hat einen Verbindungs-Timeout von einer Sekunde und einen
+Request-Timeout von zwei Sekunden. Bei I/O-Fehlern, HTTP 429 oder 5xx versucht er
+den Aufruf höchstens dreimal, mit jeweils 200 ms Abstand. Andere Fehler wie 404
+werden nicht wiederholt. Diese Begrenzung gilt jeweils für GET und PUT.
+
+Der Circuit Breaker wertet die letzten fünf logischen Aufrufe aus. Nach mindestens
+fünf Aufrufen öffnet er bei einer Fehlerrate von mindestens 50 %. Nach 15 Sekunden
+lässt er zwei Probeaufrufe zu. Ein offener Circuit Breaker antwortet direkt mit 503.
+
+Beim [Ausfalltest](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/module-resilience.md)
+wurde die Netzwerkverbindung zwischen den beiden Diensten kurz blockiert.
+Die Zuweisung lieferte 503, während die Anmeldung weiter funktionierte.
+Nach Wiederherstellung erholte sich die Zuweisung ohne Neustart.
+
+## Metriken
+
+| Dienst | Endpunkt | Metriken |
+|---|---|---|
+| User-Service | `/actuator/prometheus` | `http_server_requests_seconds_count` und Dauer-Histogramm |
+| Module-Service | `/metrics` | `module_http_requests_total` und `module_http_request_duration_seconds` |
+
+ServiceMonitors erfassen beide Endpunkte. Die Grafana-Dashboards zeigen Request
+Rate, Response Time und Error Rate. Ein weiteres Dashboard zeigt CPU, RAM und HPA.
+Die Konfiguration liegt im [Ops-Repository](https://github.com/xxtimmyplaysxx/user-mgmt-ops/tree/main/monitoring).
+
+## Datenbank und Start des Module-Service
+
+Ein Init-Container führt `python -m app.initialize` aus. Damit werden Tabellen und
+die vier Unterrichtsmodule bei Bedarf angelegt. Mehrfaches Ausführen erzeugt keine
+doppelten Module. Anwendung und Init-Container prüfen bei der MySQL-Verbindung
+das CA-Zertifikat und den Hostnamen. Verbindungsdaten und CA kommen aus einem
+Kubernetes Secret.
+
+## Tests
+
+Die Java-Tests prüfen unter anderem Retry, Timeout, Circuit Breaker, Berechtigungen
+und Fehlerstatus. Die HTTP-Tests verwenden einen eingebetteten Server und eine
+H2-Testdatenbank. Die Python-Tests prüfen die API, doppelte Modulcodes, idempotente
+Zuweisungen und Metriken mit einer SQLite-Testdatenbank.
+
+Für einen Test gegen das laufende Staging zuerst einen Port-Forward starten:
+
+```powershell
+kubectl --context do-fra1-vsc-orchestrierung -n user-mgmt-staging port-forward svc/user-mgmt-backend 18080:8080
+```
+
+In einem zweiten Terminal aus dem Application-Repository:
+
+```powershell
+python scripts/e2e.py --base-url http://127.0.0.1:18080
+```
+
+Das Skript registriert zwei Testbenutzer, meldet sie an und prüft sechs Fälle:
+Zuweisung, Wiederholung, fehlendes Modul, ungültige ID, fehlende Anmeldung und
+fremde User-ID. Die [Testergebnisse](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/module-rollout.md)
+und der [Test nach der PostgreSQL-Migration](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/postgres-final-copy.md)
+sind im Ops-Repository dokumentiert.
+
+## CI/CD
+
+Pull Requests führen Tests und Builds aus. Bei einem Push auf `main` veröffentlicht
+GitHub Actions zusätzlich die drei Images in GHCR und trägt deren Commit-SHA-Tags
+in die Staging-Werte des Ops-Repositories ein. Argo CD synchronisiert diese Werte.
+
+Der Schreibzugriff auf das Ops-Repository erfolgt über den Deploy-Key im
+Actions-Secret `OPS_DEPLOY_KEY`. Zugangsdaten werden nicht im Repository gespeichert.
