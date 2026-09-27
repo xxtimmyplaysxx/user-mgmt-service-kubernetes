@@ -2,6 +2,7 @@ package com.example.jwt.core.security;
 
 import com.example.jwt.core.security.helpers.JwtProperties;
 import com.example.jwt.domain.user.UserService;
+import jakarta.servlet.DispatcherType;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,6 +45,8 @@ public class WebSecurityConfig {
         "/users/login".equals(request.getServletPath()) && HttpMethod.POST.matches(request.getMethod());
     return http
         .authorizeHttpRequests(requests -> requests
+            // Keep the original HTTP status when the servlet container renders an error.
+            .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
             .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
             .requestMatchers(HttpMethod.POST, "/users/login").permitAll()
             .requestMatchers(HttpMethod.POST, "/users/register").permitAll()

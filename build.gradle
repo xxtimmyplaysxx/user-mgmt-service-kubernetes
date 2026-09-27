@@ -38,6 +38,7 @@ dependencies {
 
     testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '4.1.0-M3'
     testImplementation group: 'org.springframework.security', name: 'spring-security-test', version: '7.1.0-M3'
+    testRuntimeOnly 'com.h2database:h2'
 }
 
 tasks.named('test') {

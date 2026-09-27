@@ -56,7 +56,9 @@ uv run pytest
 ```
 
 Java tests cover retry, circuit opening, timeout, missing module, missing user and
-controller delegation. Python tests cover API validation, duplicate module codes,
+controller delegation. A real embedded HTTP server also verifies that servlet
+error dispatch preserves 400/404/502/503, while unauthenticated and other-user
+assignments remain forbidden. Its H2 database is test-only. Python tests cover API validation, duplicate module codes,
 idempotent assignments and metrics. These local tests do not replace live MySQL,
 Kubernetes admission or end-to-end checks.
 
@@ -77,9 +79,25 @@ On 27 September, main commit `6c932b34bb69f1d3af03ca5529b887874d9b6112` passed
 Java/Python tests and published all three images. The final promotion failed with
 `Bad credentials` from the old Ops token. A repository-scoped SSH deploy key was
 then configured and verified with `git ls-remote` and a push dry-run. The revised
-workflow still needs a successful main-branch promotion run.
+workflow completed successfully in run
+[36323051668](https://github.com/xxtimmyplaysxx/user-mgmt-service-kubernetes/actions/runs/36323051668),
+including image promotion to Ops main.
+
+After Ops PR 1 was merged, all four staging Deployments became Ready and Argo CD
+reported Synced/Healthy. Managed MySQL reports TLS 1.3 with certificate and hostname
+verification, and both application Prometheus targets are up. Live E2E confirmed
+registration/login, module assignment and an idempotent repeat, but exposed a 403
+instead of the expected 404 for a missing module. The servlet ERROR redispatch was
+being authenticated again after the request's JWT context had been cleared.
+
+The security configuration now permits only the internal ERROR dispatcher, as
+[documented by Spring Security](https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html).
+Ordinary requests to `/error` and the assignment API retain their authentication
+rules. The real HTTP regression tests reproduce the incorrect statuses before
+the fix. The live E2E run must be repeated after publishing the corrected image.
 
 Status: the owner released the earlier cluster-change freeze. Cluster import,
-managed databases, backup restore test, and infrastructure monitoring are live;
-module rollout, final PostgreSQL cutover, and live acceptance checks are pending.
+managed databases, backup restore test, monitoring and module rollout are live;
+the API error-status fix, final PostgreSQL cutover and remaining live acceptance
+checks are pending.
 The Ops repository's evidence/STATUS.md tracks the remaining checks.
