@@ -103,7 +103,6 @@ invalid Ops credentials were replaced with the scoped SSH deploy key described a
 The submission consists of this Application repository and the
 [Ops repository](https://github.com/xxtimmyplaysxx/user-mgmt-ops).
 Infrastructure configuration, dated acceptance results and limitations are maintained
-in its [status and evidence](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/STATUS.md),
-[resilience report](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/module-resilience.md)
-and [German oral-exam guide](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/PRUEFUNGSVORBEREITUNG.md).
+in its [status and evidence](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/STATUS.md)
+and [resilience report](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/module-resilience.md).
 The teacher performs the final assessment and oral examination.
