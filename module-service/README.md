@@ -32,13 +32,27 @@ Die Zuweisung ist idempotent: Wiederholte `PUT`-Requests für denselben User und
 Modul erzeugen nur einen Eintrag in `users_modules`. Die User-ID stammt aus dem
 `user_mgmt_service`; der Module Service prüft nur, ob das angegebene Modul existiert.
 
-## Anwendung starten
+## Lokal starten
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install uv
-uv sync --frozen --extra dev
-cp .env.example .env
-uvicorn app.main:app --reload --port 8080
+Voraussetzungen: Python ab 3.12, uv und eine erreichbare MySQL-Datenbank `modules`.
+In einer lokalen, nicht versionierten `.env` die eigenen Verbindungsdaten eintragen:
+
+```dotenv
+DATABASE_URL=mysql+pymysql://BENUTZER:PASSWORT@HOST:3306/modules
+MYSQL_SSL_DISABLED=true
 ```
+
+`MYSQL_SSL_DISABLED=true` gilt nur fuer eine lokale Testdatenbank. Fuer Managed MySQL
+`MYSQL_SSL_DISABLED=false` setzen und mit `MYSQL_SSL_CA` den Pfad zur CA-Datei angeben.
+Sonderzeichen im Passwort muessen in der URL kodiert werden.
+
+Aus dem Verzeichnis `module-service/`:
+
+```powershell
+uv sync --frozen --extra dev
+uv run python -m app.initialize
+uv run uvicorn app.main:app --reload --port 8080
+```
+
+Im Kubernetes-Deployment uebernimmt der Init-Container die Initialisierung.
+Herkunft und Anpassungen der Unterrichtsvorlage: [UPSTREAM.md](UPSTREAM.md).
