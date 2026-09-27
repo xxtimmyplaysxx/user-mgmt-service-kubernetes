@@ -87,8 +87,9 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/checkout@v4
         with:
-          repository: ${{ secrets.OPS_REPOSITORY }}
-          token: ${{ secrets.OPS_REPO_TOKEN }}
+          repository: xxtimmyplaysxx/user-mgmt-ops
+          ref: main
+          ssh-key: ${{ secrets.OPS_DEPLOY_KEY }}
           path: ops-repository
 
       - name: Promote immutable tag to staging

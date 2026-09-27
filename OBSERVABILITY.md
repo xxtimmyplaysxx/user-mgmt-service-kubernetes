@@ -67,5 +67,19 @@ GHCR using the commit SHA and updates staging image tags in the Ops repository.
 Argo CD applies the reviewed Helm configuration. Pull requests build/test only;
 they do not publish or promote. Main pushes can change the live staging application.
 
-Status: local preparation. Deployment and live acceptance evidence remain pending
-until the owner's explicit release of the earlier cluster-change freeze.
+Ops promotion uses the encrypted Actions secret `OPS_DEPLOY_KEY`, an SSH deploy
+key with write access only to `xxtimmyplaysxx/user-mgmt-ops`. The key's public half
+is registered under that repository's Deploy keys; the private half is never
+committed. The old `OPS_REPO_TOKEN` is no longer used. Checkout selects `main`
+explicitly and keeps SSH host verification enabled.
+
+On 27 September, main commit `6c932b34bb69f1d3af03ca5529b887874d9b6112` passed
+Java/Python tests and published all three images. The final promotion failed with
+`Bad credentials` from the old Ops token. A repository-scoped SSH deploy key was
+then configured and verified with `git ls-remote` and a push dry-run. The revised
+workflow still needs a successful main-branch promotion run.
+
+Status: the owner released the earlier cluster-change freeze. Cluster import,
+managed databases, backup restore test, and infrastructure monitoring are live;
+module rollout, final PostgreSQL cutover, and live acceptance checks are pending.
+The Ops repository's evidence/STATUS.md tracks the remaining checks.
