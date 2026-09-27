@@ -1,65 +1,69 @@
-# Akzeptanzcheckliste
+# Abgabekontrolle: Observability und Microservices
 
-## Aufgabe 1
+Diese Checkliste beschreibt die fertige Abgabe für **Aufgaben 1–6 der Prüfung 3**.
+Code und Anwendungsdokumentation liegen in diesem Repository; Infrastruktur,
+Betriebsanleitungen und datierte Testnachweise im
+[Ops-Repository](https://github.com/xxtimmyplaysxx/user-mgmt-ops).
 
-- [x] Erreichbare Registry-Pfade für Backend und Frontend vorbereitet
-- [x] Deployment und Service für Frontend, Backend und PostgreSQL
-- [x] ConfigMap für nicht sensible Werte
-- [x] Secret für sensible Werte (nur Demo-Platzhalter, vor Produktion ersetzen)
-- [x] PostgreSQL PersistentVolumeClaim
-- [x] Backend nutzt den internen PostgreSQL-Service
-- [x] Ingress für Frontend und `/api`
+## Aufgabe 1: Observability
 
-## Aufgabe 2
+- [x] kube-prometheus-stack installiert; Helm-Werte versioniert.
+- [x] CPU-/RAM-/HPA-Dashboard und zwei RED-Dashboards mit echten Daten.
+- [x] Metrik-Endpunkte und ServiceMonitors für User- und Module-Service.
+- [x] Alarm und Entwarnung über Alertmanager an den internen Webhook zugestellt.
 
-- [x] Helm Chart erstellt
-- [x] Kubernetes-Ressourcen templatisiert
-- [x] Werte zentral in Values-Dateien
-- [x] Wiederverwendbare Funktionen in `_helpers.tpl`
-- [x] `helm lint` für Standard, Staging und Production fehlerfrei
+[Monitoring](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/monitoring-installation.md),
+[Alarmzustellung](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/alert-delivery.md).
 
-## Aufgabe 3
+## Aufgabe 2: Lasttest und Skalierung
 
-- [ ] Separates GitHub-Ops-Repository erstellen (erst nach Freigabe)
-- [ ] Argo CD im DigitalOcean-Cluster installieren
-- [x] Zwei Argo-CD-Application-Manifeste vorbereitet
-- [x] Getrennter Argo-CD-Namespace vorgesehen
-- [x] Automatische Synchronisierung, Self-Heal und Prune konfiguriert
-- [x] Sicherer Dashboard-Zugriff per Port-Forward dokumentiert
+- [x] k6-Test mit echtem Login-Endpunkt und bis zu 20 virtuellen Benutzern.
+- [x] 3282 erfolgreiche Logins, keine HTTP-Fehler, P95 1.06 s.
+- [x] HPA 1 → 2 → 1, durchgehend verfügbares Backend, keine Neustarts im bestandenen Lauf.
+- [x] Messkurven, Rohdaten und Auswertung in Git.
 
-## Aufgabe 4
+[Lasttestnachweis](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/loadtest-passed.md).
 
-- [x] Pipeline startet bei Push auf `main`
-- [x] Images werden mit Git-Commit-Hash getaggt
-- [x] Veröffentlichung in GHCR vorbereitet
-- [x] Automatische Aktualisierung des Staging-Image-Tags vorbereitet
-- [x] SSH-, Compose- und imperative Deployment-Schritte entfernt
-- [x] Benötigte Zugangsdaten als GitHub Secrets referenziert
+## Aufgabe 3: Infrastructure as Code
 
-## Aufgabe 5
+- [x] Bestehenden DigitalOcean-Kubernetes-Cluster in Terraform importiert.
+- [x] Generierte Konfiguration bereinigt und parametrisiert.
+- [x] Formatierung, Validierung und abschliessender Plan ohne Änderungen geprüft.
+- [x] State, Zugangsdaten und Plan-Dateien vom Repository ausgeschlossen.
 
-- [x] `values-staging.yaml` und `values-prod.yaml`
-- [x] Zwei getrennte Argo-CD-Applications und Namespaces
-- [x] ResourceQuota pro Umgebung
-- [x] NetworkPolicies für Default-Deny und erlaubte Kommunikationswege
+[Terraform-Dokumentation](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/terraform/README.md).
 
-## Aufgabe 6
+## Aufgabe 4: Managed PostgreSQL
 
-- [x] HPA für Backend mit zwei bis fünf Replicas
-- [x] Requests und Limits für alle Pods
-- [x] Startup-, Liveness- und Readiness-Probes
-- [x] Ingress verteilt nur auf Ready-Service-Endpunkte
-- [x] RollingUpdate mit `maxUnavailable: 0`
-- [x] PDB für Backend und Frontend
+- [x] Managed-Datenbank und Firewall mit Terraform erstellt.
+- [x] Aktuelles Backup bei gestoppten Schreibzugriffen migriert und Daten verglichen.
+- [x] Anwendung auf Managed PostgreSQL umgestellt; TLS und Funktion geprüft.
+- [x] Alte Staging-Datenbank samt Service, PVC und Cloud-Volume entfernt.
+- [x] Planerstatistiken nach dem Restore mit ANALYZE aktualisiert.
 
-## Noch zwingend im echten Cluster zu testen
+[Migration](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/postgres-final-copy.md),
+[Betriebsanleitung](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/postgres-cutover-runbook.md).
 
-- [ ] Images in GHCR publizieren und Pull-Zugriff prüfen
-- [ ] echte Domains in Values und Argo-CD-Ingress einsetzen
-- [ ] Ingress Controller und Metrics Server installieren/prüfen
-- [ ] beide Argo-CD-Applications synchron und healthy
-- [ ] Registrierung und Login über das Frontend
-- [ ] Neustart eines Pods und Erhalt der PostgreSQL-Daten
-- [ ] Lasttest: HPA skaliert hoch und später wieder herunter
-- [ ] Rolling Update ohne Unterbruch demonstrieren
-- [ ] ResourceQuota und NetworkPolicies im Cluster nachweisen
+## Aufgabe 5: Policy as Code
+
+- [x] Kyverno installiert und Konfiguration versioniert.
+- [x] Drei Enforce-Policies für Ressourcen, Non-root-Betrieb und versionierte Images.
+- [x] Ungültiges Deployment abgelehnt; zwölf Admission-Gegenproben bestanden.
+
+[Policy-Nachweis](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/kyverno-admission.md).
+
+## Aufgabe 6: Microservices
+
+- [x] Module-Service des Lehrers integriert; Herkunft dokumentiert.
+- [x] Module und Zuweisungen in Managed MySQL mit geprüfter TLS-Verbindung.
+- [x] Authentifizierte Modulzuweisung über HTTP mit Existenz- und Berechtigungsprüfung.
+- [x] Idempotente Zuweisung, Timeout, begrenzte Retries und Circuit Breaker.
+- [x] User-Service verwendet keine direkte MySQL-Verbindung.
+- [x] Java-/Python-Tests, sechs Live-E2E-Fälle sowie Ausfall und Erholung geprüft.
+- [x] Metriken für beide Dienste; drei Images mit Commit-SHA-Tags über CI/GitOps ausgerollt.
+
+[Anwendungsdokumentation](OBSERVABILITY.md),
+[Ausfalltest](https://github.com/xxtimmyplaysxx/user-mgmt-ops/blob/main/evidence/module-resilience.md).
+
+Die Nachweise enthalten Testzeitpunkte, geprüfte Images und Grenzen des Testumfangs.
+Sie ersetzen keine allgemeine Verfügbarkeits- oder Kapazitätsgarantie.
