@@ -7,13 +7,13 @@ COPY build.gradle settings.gradle ./
 RUN gradle dependencies --no-daemon
 
 COPY src ./src
-RUN gradle build -x test --no-daemon
+RUN gradle build --no-daemon
 
 
 FROM eclipse-temurin:25-jdk-alpine AS jre-build
 
 RUN jlink \
-    --add-modules java.base,java.logging,java.management,java.naming,java.sql,java.xml,java.desktop,java.instrument,java.security.jgss,java.compiler,jdk.unsupported \
+    --add-modules java.base,java.logging,java.management,java.naming,java.sql,java.xml,java.desktop,java.instrument,java.security.jgss,java.compiler,java.net.http,jdk.crypto.ec,jdk.unsupported \
     --strip-debug \
     --no-man-pages \
     --no-header-files \
