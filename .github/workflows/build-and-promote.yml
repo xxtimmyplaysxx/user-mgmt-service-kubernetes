@@ -3,6 +3,7 @@ name: Build, publish and promote
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -13,6 +14,7 @@ env:
   REGISTRY: ghcr.io
   BACKEND_IMAGE: ghcr.io/xxtimmyplaysxx/user-mgmt-backend
   FRONTEND_IMAGE: ghcr.io/xxtimmyplaysxx/user-mgmt-frontend
+  MODULE_IMAGE: ghcr.io/xxtimmyplaysxx/user-mgmt-module
 
 jobs:
   build-publish-promote:
@@ -20,6 +22,22 @@ jobs:
     steps:
       - name: Checkout application repository
         uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Test backend
+        run: bash gradlew test --no-daemon
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test module service
+        working-directory: module-service
+        run: |
+          pip install uv==0.12.19
+          uv sync --frozen --extra dev
+          uv run pytest
 
       - name: Set immutable image tag
         id: image
@@ -30,6 +48,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Sign in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -40,7 +59,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.BACKEND_IMAGE }}:${{ steps.image.outputs.tag }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
@@ -49,13 +68,23 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ env.FRONTEND_IMAGE }}:${{ steps.image.outputs.tag }}
           build-args: NEXT_PUBLIC_API_URL=/api
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
+      - name: Build and publish module service
+        uses: docker/build-push-action@v6
+        with:
+          context: ./module-service
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ env.MODULE_IMAGE }}:${{ steps.image.outputs.tag }}
+          cache-from: type=gha,scope=module
+          cache-to: type=gha,mode=max,scope=module
+
       - name: Checkout Ops repository
+        if: github.event_name != 'pull_request'
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.OPS_REPOSITORY }}
@@ -63,11 +92,13 @@ jobs:
           path: ops-repository
 
       - name: Promote immutable tag to staging
+        if: github.event_name != 'pull_request'
         uses: mikefarah/yq@v4.47.2
         with:
-          cmd: yq -i '.images.backend.tag = "${{ steps.image.outputs.tag }}" | .images.frontend.tag = "${{ steps.image.outputs.tag }}"' ops-repository/charts/user-mgmt/values-staging.yaml
+          cmd: yq -i '.images.backend.tag = "${{ steps.image.outputs.tag }}" | .images.frontend.tag = "${{ steps.image.outputs.tag }}" | .module.image.tag = "${{ steps.image.outputs.tag }}"' ops-repository/charts/user-mgmt/values-staging.yaml
 
       - name: Commit promotion to Ops repository
+        if: github.event_name != 'pull_request'
         working-directory: ops-repository
         shell: bash
         run: |
